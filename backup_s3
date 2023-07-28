@@ -1,0 +1,49 @@
+# After Install mysql and create database and Users,
+# Create Script for upload and copy to bucket
+# Create user for unique services of backup 
+# install AWS tools in case of S3 AWS
+
+# Upload file for test 
+aws s3 cp testfile s3://sf-backup-656373223/testfile 
+# Create a Script for generate a dumpu for s3
+mkdir /backups
+cd /backups
+nano .env
+#Put this info Bellow
+export MYSQL_USER=root
+export MYSQL_PASSWORD=root
+
+# Source the Env file
+source /backup/.env
+# Create script 
+#!/bin/bash
+FILE_NAME="example_db-`date +%y%m%d%H%M`.sql.gz"
+SAVE_DIR="/backup"
+S3BUCKET="db-backup"
+#get MYSQL_USER and PASSWORD
+mysqldump -u ${MYSQL_USER} -p${MYSQL_PASSWORD} example_db | gzip > ${SAVE_DIR}/{FILE_NAME}
+if [ -e ${SAVE_DIR}/${FILE_NAME} ]; then
+   # Upload to S3 # 
+   aws s3 cp ${SAVE_DIR}/{FILE_NAME} s3://{S3BUCKET}/{FILE_NAME}
+   # Test Result Last Command run
+   if [ "$?" -ne "0" ]; then
+      echo "Upload to S3 Failed"
+      exit 1
+   fi
+
+   # Remove backup file 
+   rm ${SAVE_DIR}/{FILE_NAME}
+   # Exit with no error
+   exit 0
+fi
+# Exit with error if we reach this point
+echo "Backup file not created"
+exit
+
+## Now comen create a Crontab for run in Time that we want ##
+crontab -e 
+# Add this line in conf of crontab
+0 0 * * * /usr/bin/env bash /backup/backup.sh &>> /backup/backup.log 
+
+
+  
